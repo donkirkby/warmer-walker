@@ -25,7 +25,7 @@ import {
   DebugInstructions,
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
-import Geolocation from '@react-native-community/geolocation';
+import Geolocation from 'react-native-geolocation-service';
 
 const requestLocationPermission = async () => {
   try {
@@ -83,12 +83,8 @@ class App extends Component<AppProps> {
           count: app.state.count+1
         })
       },
-      {maximumAge: 10000}
+      {enableHighAccuracy: true, maximumAge: 10000}
       );
-  }
-
-  displayPosition(message) {
-    this.setState({location: message, count: this.state.count + 1});
   }
 
   render() {
