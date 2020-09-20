@@ -43,11 +43,6 @@ const requestLocationPermission = async () => {
     );
     if (granted === PermissionsAndroid.RESULTS.GRANTED) {
       console.log("You can use the location");
-      Geolocation.getCurrentPosition(
-        (pos) => {console.log(
-          "Position " + pos.coords.latitude + ", " + pos.coords.longitude)},
-        (err) => {console.log("Failed to get position. " + err.message)}
-      );
     } else {
       console.log("Location permission denied");
     }
@@ -61,6 +56,41 @@ type AppProps = {
 };
 
 class App extends Component<AppProps> {
+  constructor(props) {
+    super(props);
+    this.state = {
+        location: "unknown",
+        error: "",
+        count: 0
+    };
+
+    this.handleQuery = this.handleQuery.bind(this);
+  }
+
+  handleQuery(event) {
+    let app = this;
+    Geolocation.getCurrentPosition(
+      (pos) => {
+        app.setState({
+          location: pos.coords.latitude + "; " + pos.coords.longitude,
+          error: "",
+          count: app.state.count+1
+        })
+      },
+      (err) => {
+        app.setState({
+          error: "Failed to update: " + err.message,
+          count: app.state.count+1
+        })
+      },
+      {maximumAge: 10000}
+      );
+  }
+
+  displayPosition(message) {
+    this.setState({location: message, count: this.state.count + 1});
+  }
+
   render() {
     return (
       <>
@@ -77,27 +107,14 @@ class App extends Component<AppProps> {
             )}
             <View style={styles.body}>
               <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Step One</Text>
-                <Text style={styles.sectionDescription}>
-                  Edit <Text style={styles.highlight}>App.js</Text> to change this
-                  screen and then come back to see your edits.
-                </Text>
-              </View>
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>See Your Changes</Text>
-                <Text style={styles.sectionDescription}>
-                  <ReloadInstructions />
-                </Text>
-              </View>
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Debug</Text>
-                <Text style={styles.sectionDescription}>
-                  <DebugInstructions />
-                </Text>
-              </View>
-              <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Try permissions</Text>
                 <Button title="request permissions" onPress={requestLocationPermission} />
+              </View>
+              <View style={styles.sectionContainer}>
+                <Text style={styles.sectionTitle}>Requests: {this.state.count}</Text>
+                <Text style={styles.sectionTitle}>Current location: {this.state.location}</Text>
+                <Text style={styles.sectionTitle}>Error: {this.state.error}</Text>
+                <Button title="get location" onPress={this.handleQuery} />
               </View>
             </View>
           </ScrollView>
