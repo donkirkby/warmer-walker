@@ -55,21 +55,25 @@ type AppProps = {
 
 };
 
-class App extends Component<AppProps> {
-  constructor(props) {
+type AppState = {
+  location: string,
+  error: string,
+  count: number
+}
+
+class App extends Component<AppProps, AppState> {
+  constructor(props: AppProps) {
     super(props);
     this.state = {
         location: "unknown",
         error: "",
         count: 0
     };
-
-    this.handleQuery = this.handleQuery.bind(this);
   }
 
-  handleQuery(event) {
+  componentDidMount() {
     let app = this;
-    Geolocation.getCurrentPosition(
+    Geolocation.watchPosition(
       (pos) => {
         app.setState({
           location: pos.coords.latitude + "; " + pos.coords.longitude,
@@ -83,8 +87,11 @@ class App extends Component<AppProps> {
           count: app.state.count+1
         })
       },
-      {enableHighAccuracy: true, maximumAge: 10000}
-      );
+      {
+        enableHighAccuracy: true,
+        distanceFilter: 10 // meters
+      }
+    )
   }
 
   render() {
@@ -107,10 +114,9 @@ class App extends Component<AppProps> {
                 <Button title="request permissions" onPress={requestLocationPermission} />
               </View>
               <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Requests: {this.state.count}</Text>
+                <Text style={styles.sectionTitle}>Updates: {this.state.count}</Text>
                 <Text style={styles.sectionTitle}>Current location: {this.state.location}</Text>
                 <Text style={styles.sectionTitle}>Error: {this.state.error}</Text>
-                <Button title="get location" onPress={this.handleQuery} />
               </View>
             </View>
           </ScrollView>
