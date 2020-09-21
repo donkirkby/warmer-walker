@@ -8,8 +8,10 @@
  * @format
  */
 
-import React from 'react';
+import React, { Component } from "react";
 import {
+  Button,
+  PermissionsAndroid,
   SafeAreaView,
   StyleSheet,
   ScrollView,
@@ -25,55 +27,107 @@ import {
   DebugInstructions,
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
+import Geolocation from 'react-native-geolocation-service';
 
 declare const global: {HermesInternal: null | {}};
 
-const App = () => {
-  return (
-    <>
-      <StatusBar barStyle="dark-content" />
-      <SafeAreaView>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          style={styles.scrollView}>
-          <Header />
-          {global.HermesInternal == null ? null : (
-            <View style={styles.engine}>
-              <Text style={styles.footer}>Engine: Hermes</Text>
+const requestLocationPermission = async () => {
+  try {
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      {
+        title: "Warmer Walker Location Permission",
+        message:
+          "Warmer Walker needs access to your precise " +
+          "location so it can tell how close you are to the targets.",
+        buttonNeutral: "Ask Me Later",
+        buttonNegative: "Cancel",
+        buttonPositive: "OK"
+      }
+    );
+    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+      console.log("You can use the location");
+    } else {
+      console.log("Location permission denied");
+    }
+  } catch (err) {
+    console.warn(err);
+  }
+};
+
+type AppProps = {
+
+};
+
+type AppState = {
+  location: string,
+  error: string,
+  count: number
+}
+
+class App extends Component<AppProps, AppState> {
+  constructor(props: AppProps) {
+    super(props);
+    this.state = {
+        location: "unknown",
+        error: "",
+        count: 0
+    };
+  }
+
+  componentDidMount() {
+    let app = this;
+    Geolocation.watchPosition(
+      (pos) => {
+        app.setState({
+          location: pos.coords.latitude + "; " + pos.coords.longitude,
+          error: "",
+          count: app.state.count+1
+        })
+      },
+      (err) => {
+        app.setState({
+          error: "Failed to update: " + err.message,
+          count: app.state.count+1
+        })
+      },
+      {
+        enableHighAccuracy: true,
+        distanceFilter: 10 // meters
+      }
+    )
+  }
+
+  render() {
+    return (
+      <>
+        <StatusBar barStyle="dark-content" />
+        <SafeAreaView>
+          <ScrollView
+            contentInsetAdjustmentBehavior="automatic"
+            style={styles.scrollView}>
+            <Header />
+            {global.HermesInternal == null ? null : (
+              <View style={styles.engine}>
+                <Text style={styles.footer}>Engine: Hermes</Text>
+              </View>
+            )}
+            <View style={styles.body}>
+              <View style={styles.sectionContainer}>
+                <Text style={styles.sectionTitle}>Try permissions</Text>
+                <Button title="request permissions" onPress={requestLocationPermission} />
+              </View>
+              <View style={styles.sectionContainer}>
+                <Text style={styles.sectionTitle}>Updates: {this.state.count}</Text>
+                <Text style={styles.sectionTitle}>Current location: {this.state.location}</Text>
+                <Text style={styles.sectionTitle}>Error: {this.state.error}</Text>
+              </View>
             </View>
-          )}
-          <View style={styles.body}>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Step One</Text>
-              <Text style={styles.sectionDescription}>
-                Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-                screen and then come back to see your edits.
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>See Your Changes</Text>
-              <Text style={styles.sectionDescription}>
-                <ReloadInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Debug</Text>
-              <Text style={styles.sectionDescription}>
-                <DebugInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Learn More</Text>
-              <Text style={styles.sectionDescription}>
-                Read the docs to discover what to do next:
-              </Text>
-            </View>
-            <LearnMoreLinks />
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </>
-  );
+          </ScrollView>
+        </SafeAreaView>
+      </>
+    );
+  }
 };
 
 const styles = StyleSheet.create({
