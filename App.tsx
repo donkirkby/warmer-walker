@@ -1,9 +1,5 @@
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * Generated with the TypeScript template
- * https://github.com/react-native-community/react-native-template-typescript
+ * Warmer Walker app: walk around your neighbourhood playing warmer / colder.
  *
  * @format
  */
@@ -27,68 +23,93 @@ import {
   DebugInstructions,
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
-import Geolocation from 'react-native-geolocation-service';
+import Geolocation, {GeoPosition} from 'react-native-geolocation-service';
+import GoalTracker, { Clue } from "./GoalTracker";
 
 declare const global: {HermesInternal: null | {}};
-
-const requestLocationPermission = async () => {
-  try {
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-      {
-        title: "Warmer Walker Location Permission",
-        message:
-          "Warmer Walker needs access to your precise " +
-          "location so it can tell how close you are to the targets.",
-        buttonNeutral: "Ask Me Later",
-        buttonNegative: "Cancel",
-        buttonPositive: "OK"
-      }
-    );
-    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-      console.log("You can use the location");
-    } else {
-      console.log("Location permission denied");
-    }
-  } catch (err) {
-    console.warn(err);
-  }
-};
 
 type AppProps = {
 
 };
 
 type AppState = {
+  clueCount: number,
+  clue: string,  // warmer, colder, or found!
   location: string,
   error: string,
-  count: number
+  positionCount: number,
+  goalTracker?: GoalTracker
 }
 
 class App extends Component<AppProps, AppState> {
   constructor(props: AppProps) {
     super(props);
     this.state = {
-        location: "unknown",
+        clueCount: 0,
+        location: "",
+        clue: "",
         error: "",
-        count: 0
+        positionCount: 0
     };
   }
 
   componentDidMount() {
+    this.requestLocationPermission();
+  }
+
+  async requestLocationPermission() {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: "Warmer Walker Location Permission",
+          message:
+            "Warmer Walker needs access to your precise " +
+            "location so it can tell how close you are to the targets.",
+          buttonNeutral: "Ask Me Later",
+          buttonNegative: "Cancel",
+          buttonPositive: "OK"
+        }
+      );
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        this.registerPositionWatcher();
+      } else {
+        this.setState({error: "Permission denied for precise location."})
+      }
+    } catch (err) {
+      console.warn(err);
+      this.setState({error: "Unexpected error occurred."})
+    }
+  }
+  
+  registerPositionWatcher() {
     let app = this;
     Geolocation.watchPosition(
       (pos) => {
+        let goalTracker = app.state.goalTracker;
+        if (goalTracker === undefined) {
+          goalTracker = new GoalTracker(pos.coords, 100).chooseGoal(1000);
+        }
+
+        let clue = goalTracker.updatePosition(pos.coords);
+        if (clue !== Clue.None) {
+          app.setState({
+            clue: Clue[clue],
+            clueCount: this.state.clueCount + 1
+          });
+        }
         app.setState({
           location: pos.coords.latitude + "; " + pos.coords.longitude,
           error: "",
-          count: app.state.count+1
+          positionCount: this.state.positionCount + 1,
+          goalTracker: goalTracker
         })
       },
       (err) => {
+        console.warn(err);
         app.setState({
-          error: "Failed to update: " + err.message,
-          count: app.state.count+1
+          error: "Failed to update position: " + err.message,
+          positionCount: this.state.positionCount + 1
         })
       },
       {
@@ -96,6 +117,15 @@ class App extends Component<AppProps, AppState> {
         distanceFilter: 10 // meters
       }
     )
+  }
+
+  onNext = () => {
+    if (this.state.goalTracker !== undefined) {
+      this.setState({
+        goalTracker: this.state.goalTracker.chooseGoal(1000),
+        clueCount: 0
+      });
+    }
   }
 
   render() {
@@ -114,11 +144,9 @@ class App extends Component<AppProps, AppState> {
             )}
             <View style={styles.body}>
               <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Try permissions</Text>
-                <Button title="request permissions" onPress={requestLocationPermission} />
-              </View>
-              <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Updates: {this.state.count}</Text>
+                <Text style={styles.sectionTitle}>Clue: {this.state.clue}</Text>
+                <Text style={styles.sectionTitle}>Count: {this.state.clueCount}</Text>
+                <Button title="Next" onPress={this.onNext} />
                 <Text style={styles.sectionTitle}>Current location: {this.state.location}</Text>
                 <Text style={styles.sectionTitle}>Error: {this.state.error}</Text>
               </View>
