@@ -14,7 +14,8 @@ class GoalTracker {
   goalRadius: number;
   goalPosition: GeolibInputCoordinates;
   previousPosition: GeolibInputCoordinates;
-  previousDistance: number;
+  previousDistance: number;  // from previous position to goal
+  clueProgress: number; // fraction of distance to next clue
   isFound: boolean;
 
   constructor(
@@ -24,7 +25,7 @@ class GoalTracker {
     this.goalPosition = this.previousPosition = this.currentPosition = currentPosition;
     this.goalRadius = goalRadius;
     this.isFound = true;
-    this.previousDistance = 0;
+    this.previousDistance = this.clueProgress = 0.0;
   }
 
   setGoal(goalPosition: GeolibInputCoordinates): GoalTracker {
@@ -44,18 +45,27 @@ class GoalTracker {
   }
 
   updatePosition(position: GeolibInputCoordinates): Clue {
+    if (this.isFound) {
+      return Clue.None;
+    }
     let distanceToGoal = getDistance(position, this.goalPosition),
-        distanceChange = distanceToGoal - this.previousDistance;
-    if (this.isFound || distanceToGoal < this.goalRadius) {
+        distanceChange = distanceToGoal - this.previousDistance,
+        distanceFromPrevious = getDistance(this.previousPosition, position);
+    if (distanceToGoal < this.goalRadius) {
       this.isFound = true;
+      this.clueProgress = 0;
+      this.previousPosition = position;
+      this.previousDistance = distanceToGoal;
       return Clue.Found;
     }
-    if (Math.abs(distanceChange) < this.goalRadius) {
+    if (distanceFromPrevious < this.goalRadius) {
       // Change is too small, so no clue given.
+      this.clueProgress = distanceFromPrevious / this.goalRadius;
       return Clue.None;
     }
     this.previousPosition = position;
     this.previousDistance = distanceToGoal;
+    this.clueProgress = 0;
     return (distanceChange < 0) ? Clue.Warmer : Clue.Colder;
   }
 }

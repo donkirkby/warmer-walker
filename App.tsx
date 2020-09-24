@@ -123,6 +123,7 @@ class App extends Component<AppProps, AppState> {
     if (this.state.goalTracker !== undefined) {
       this.setState({
         goalTracker: this.state.goalTracker.chooseGoal(1000),
+        clue: "",
         clueCount: 0
       });
     }
@@ -136,7 +137,6 @@ class App extends Component<AppProps, AppState> {
           <ScrollView
             contentInsetAdjustmentBehavior="automatic"
             style={styles.scrollView}>
-            <Header />
             {global.HermesInternal == null ? null : (
               <View style={styles.engine}>
                 <Text style={styles.footer}>Engine: Hermes</Text>
@@ -145,7 +145,7 @@ class App extends Component<AppProps, AppState> {
             <View style={styles.body}>
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Clue: {this.state.clue}</Text>
-                <Text style={styles.sectionTitle}>Count: {this.state.clueCount}</Text>
+                <Text style={styles.sectionTitle}>Progress: {this.state.goalTracker?.clueProgress}</Text>
                 <Button title="Next" onPress={this.onNext} />
                 <Text style={styles.sectionTitle}>Current location: {this.state.location}</Text>
                 <Text style={styles.sectionTitle}>Error: {this.state.error}</Text>
