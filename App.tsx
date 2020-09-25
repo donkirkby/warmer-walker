@@ -14,18 +14,15 @@ import {
   View,
   Text,
   StatusBar,
+  Image
 } from 'react-native';
 
-import {
-  Header,
-  LearnMoreLinks,
-  Colors,
-  DebugInstructions,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-import Geolocation, {GeoPosition} from 'react-native-geolocation-service';
+import { Colors } from 'react-native/Libraries/NewAppScreen';
+import Geolocation from 'react-native-geolocation-service';
 import GoalTracker, { Clue } from "./GoalTracker";
+import { getLatitude, getLongitude } from "geolib";
 
+const STREET_ACCESS = "s-IOITSzOU7t4rwDHK5rIo1OuxHLZhS3BySazIA".split('').reverse().join('');
 declare const global: {HermesInternal: null | {}};
 
 type AppProps = {
@@ -38,7 +35,8 @@ type AppState = {
   location: string,
   error: string,
   positionCount: number,
-  goalTracker?: GoalTracker
+  goalTracker?: GoalTracker,
+  goalUrl?: URL
 }
 
 class App extends Component<AppProps, AppState> {
@@ -55,6 +53,10 @@ class App extends Component<AppProps, AppState> {
 
   componentDidMount() {
     this.requestLocationPermission();
+  }
+
+  componentWillUnmount() {
+    Geolocation.stopObserving();
   }
 
   async requestLocationPermission() {
@@ -88,21 +90,23 @@ class App extends Component<AppProps, AppState> {
       (pos) => {
         let goalTracker = app.state.goalTracker;
         if (goalTracker === undefined) {
-          goalTracker = new GoalTracker(pos.coords, 100).chooseGoal(1000);
+          goalTracker = new GoalTracker(pos.coords, 100);
+          app.setState({goalTracker: goalTracker});
+          this.onNext();
         }
-
-        let clue = goalTracker.updatePosition(pos.coords);
-        if (clue !== Clue.None) {
-          app.setState({
-            clue: Clue[clue],
-            clueCount: this.state.clueCount + 1
-          });
+        else {
+          let clue = goalTracker.updatePosition(pos.coords);
+          if (clue !== Clue.None) {
+            app.setState({
+              clue: Clue[clue],
+              clueCount: this.state.clueCount + 1
+            });
+          }
         }
         app.setState({
           location: pos.coords.latitude + "; " + pos.coords.longitude,
           error: "",
-          positionCount: this.state.positionCount + 1,
-          goalTracker: goalTracker
+          positionCount: this.state.positionCount + 1
         })
       },
       (err) => {
@@ -119,13 +123,38 @@ class App extends Component<AppProps, AppState> {
     )
   }
 
-  onNext = () => {
+  onNext = async () => {
     if (this.state.goalTracker !== undefined) {
+      this.state.goalTracker.chooseGoal(1000);
+
       this.setState({
-        goalTracker: this.state.goalTracker.chooseGoal(1000),
-        clue: "",
+        clue: "Scanning",
         clueCount: 0
       });
+      try {
+        let apiUrl = new URL("https://maps.googleapis.com/maps/api/"),
+          metadataPath = "streetview/metadata",
+          imagePath = "streetview",
+          goalPosition = this.state.goalTracker.goalPosition;
+        let goalLatitude = getLatitude(goalPosition),
+          goalLongitude = getLongitude(goalPosition);
+        metadataPath += `?location=${goalLatitude},${goalLongitude}`;
+        metadataPath += `&key=${STREET_ACCESS}`;
+        let metadataResponse = await fetch(new URL(metadataPath, apiUrl.href).href);
+        let json = await metadataResponse.json();
+        goalLatitude = json.location.lat;
+        goalLongitude = json.location.lng;
+        imagePath += `?location=${goalLatitude},${goalLongitude}`;
+        imagePath += `&size=300x300`;
+        imagePath += `&heading=${Math.random() * 360}`;
+        imagePath += `&key=${STREET_ACCESS}`;
+        this.setState({
+          clue: "Ready",
+          goalUrl: new URL(imagePath, apiUrl.href)
+        });
+      } catch (error) {
+        console.error('Error fetching image: ' + error);
+      }
     }
   }
 
@@ -144,6 +173,12 @@ class App extends Component<AppProps, AppState> {
             )}
             <View style={styles.body}>
               <View style={styles.sectionContainer}>
+                { this.state.goalUrl === undefined ? null : (
+                  <Image
+                    style={styles.streetView}
+                    source={{uri: this.state.goalUrl.href}} />
+                )}
+                
                 <Text style={styles.sectionTitle}>Clue: {this.state.clue}</Text>
                 <Text style={styles.sectionTitle}>Progress: {this.state.goalTracker?.clueProgress}</Text>
                 <Button title="Next" onPress={this.onNext} />
@@ -168,6 +203,10 @@ const styles = StyleSheet.create({
   },
   body: {
     backgroundColor: Colors.white,
+  },
+  streetView: {
+    width: 300,
+    height: 300
   },
   sectionContainer: {
     marginTop: 32,
