@@ -1,13 +1,6 @@
 import { computeDestinationPoint, getDistance } from 'geolib';
 import type { GeolibInputCoordinates } from 'geolib/es/types'
 
-enum Clue {
-  None,
-  Warmer,
-  Colder,
-  Found
-}
-
 
 class GoalTracker {
   currentPosition: GeolibInputCoordinates;
@@ -15,6 +8,8 @@ class GoalTracker {
   goalPosition: GeolibInputCoordinates;
   previousPosition: GeolibInputCoordinates;
   previousDistance: number;  // from previous position to goal
+  maxDistance: number; // to goal, before displaying distance
+  clue: string;
   clueProgress: number; // fraction of distance to next clue
   isFound: boolean;
 
@@ -25,7 +20,8 @@ class GoalTracker {
     this.goalPosition = this.previousPosition = this.currentPosition = currentPosition;
     this.goalRadius = goalRadius;
     this.isFound = true;
-    this.previousDistance = this.clueProgress = 0.0;
+    this.clue = "";
+    this.previousDistance = this.maxDistance = this.clueProgress = 0;
   }
 
   setGoal(goalPosition: GeolibInputCoordinates): GoalTracker {
@@ -33,6 +29,7 @@ class GoalTracker {
     this.previousDistance = getDistance(
       this.previousPosition,
       this.goalPosition);
+    this.maxDistance = this.previousDistance + 2*this.goalRadius;
     this.isFound = false;
     return this;
   }
@@ -44,32 +41,36 @@ class GoalTracker {
     return this.setGoal(goalPosition);
   }
 
-  updatePosition(position: GeolibInputCoordinates): Clue {
-    if (this.isFound) {
-      return Clue.None;
-    }
+  updatePosition(position: GeolibInputCoordinates) {
     let distanceToGoal = getDistance(position, this.goalPosition),
         distanceChange = distanceToGoal - this.previousDistance,
         distanceFromPrevious = getDistance(this.previousPosition, position);
-    if (distanceToGoal < this.goalRadius) {
+    if (this.isFound || distanceToGoal < this.goalRadius) {
       this.isFound = true;
       this.clueProgress = 0;
       this.previousPosition = position;
       this.previousDistance = distanceToGoal;
-      return Clue.Found;
+      this.clue = `Found ${Math.round(distanceToGoal)}m away`;
+      return;
+    }
+    if (this.maxDistance < distanceToGoal) {
+      this.clueProgress = 0;
+      this.previousPosition = position;
+      this.previousDistance = distanceToGoal;
+      this.clue = `${Math.round(distanceToGoal)}m away`;
+      return;
     }
     if (distanceFromPrevious < this.goalRadius) {
       // Change is too small, so no clue given.
       this.clueProgress = distanceFromPrevious / this.goalRadius;
-      return Clue.None;
+      return;
     }
     this.previousPosition = position;
     this.previousDistance = distanceToGoal;
     this.clueProgress = 0;
-    return (distanceChange < 0) ? Clue.Warmer : Clue.Colder;
+    this.clue = (distanceChange < 0) ? "Warmer" : "Colder";
   }
 }
 
 export default GoalTracker;
-export { Clue };
 export type { GeolibInputCoordinates };

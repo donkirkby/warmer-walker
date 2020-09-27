@@ -19,7 +19,7 @@ import {
 
 import { Colors } from 'react-native/Libraries/NewAppScreen';
 import Geolocation from 'react-native-geolocation-service';
-import GoalTracker, { Clue } from "./GoalTracker";
+import GoalTracker from "./GoalTracker";
 import { getLatitude, getLongitude } from "geolib";
 
 const STREET_ACCESS = "s-IOITSzOU7t4rwDHK5rIo1OuxHLZhS3BySazIA".split('').reverse().join('');
@@ -30,7 +30,6 @@ type AppProps = {
 };
 
 type AppState = {
-  clueCount: number,
   clue: string,  // warmer, colder, or found!
   location: string,
   error: string,
@@ -43,7 +42,6 @@ class App extends Component<AppProps, AppState> {
   constructor(props: AppProps) {
     super(props);
     this.state = {
-        clueCount: 0,
         location: "",
         clue: "",
         error: "",
@@ -95,13 +93,10 @@ class App extends Component<AppProps, AppState> {
           this.onNext();
         }
         else {
-          let clue = goalTracker.updatePosition(pos.coords);
-          if (clue !== Clue.None) {
-            app.setState({
-              clue: Clue[clue],
-              clueCount: this.state.clueCount + 1
-            });
-          }
+          goalTracker.updatePosition(pos.coords);
+          app.setState({
+            clue: goalTracker.clue
+          });
         }
         app.setState({
           location: pos.coords.latitude + "; " + pos.coords.longitude,
@@ -128,8 +123,7 @@ class App extends Component<AppProps, AppState> {
       this.state.goalTracker.chooseGoal(1000);
 
       this.setState({
-        clue: "Scanning",
-        clueCount: 0
+        clue: "Scanning"
       });
       try {
         let apiUrl = new URL("https://maps.googleapis.com/maps/api/"),
@@ -154,6 +148,11 @@ class App extends Component<AppProps, AppState> {
         });
       } catch (error) {
         console.error('Error fetching image: ' + error);
+        this.setState({
+          clue: "",
+          goalUrl: undefined,
+          error: "No street view."
+        })
       }
     }
   }
