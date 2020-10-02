@@ -102,8 +102,11 @@ it('stops giving found clue after new goal', () => {
 
   tracker.updatePosition({lat: 49.001, lng: 128});
   tracker.setGoal({lat:49.100, lng:128});
+  let clue1 = tracker.clue;
   tracker.updatePosition({lat: 49.004, lng: 128});
-  expect(tracker.clue).toBe("Warmer");
+  let clue2 = tracker.clue;
+  expect(clue1).toBe("");
+  expect(clue2).toBe("Warmer");
 });
 
 it('chooses a goal within a ring around you', () => {
@@ -122,7 +125,18 @@ it('warns when very far away', () => {
     {lat: 49.100, lng: 128},
     stepSize).setGoal({lat: 49.000, lng: 128});
 
-  tracker.updatePosition({lat: 49.105, lng: 128});
-  expect(tracker.clue).toBe("11689m away");
+  tracker.updatePosition({lat: 49.1045, lng: 128});
+  expect(tracker.clue).toBe("11633m away");
+  expect(tracker.clueProgress).toBe(0);
+});
+
+it('stops warning when not very far away', () => {
+  let tracker = new GoalTracker(
+    {lat: 49.100, lng: 128},
+    stepSize).setGoal({lat: 49.000, lng: 128});
+
+  tracker.updatePosition({lat: 49.1045, lng: 128});
+  tracker.updatePosition({lat: 49.1035, lng: 128});
+  expect(tracker.clue).toBe("");
   expect(tracker.clueProgress).toBe(0);
 });

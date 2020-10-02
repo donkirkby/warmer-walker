@@ -12,6 +12,7 @@ class GoalTracker {
   clue: string;
   clueProgress: number; // fraction of distance to next clue
   isFound: boolean;
+  isTooFar: boolean;
 
   constructor(
     currentPosition: GeolibInputCoordinates,
@@ -20,6 +21,7 @@ class GoalTracker {
     this.goalPosition = this.previousPosition = this.currentPosition = currentPosition;
     this.goalRadius = goalRadius;
     this.isFound = true;
+    this.isTooFar = false;
     this.clue = "";
     this.previousDistance = this.maxDistance = this.clueProgress = 0;
   }
@@ -31,6 +33,8 @@ class GoalTracker {
       this.goalPosition);
     this.maxDistance = this.previousDistance + 2*this.goalRadius;
     this.isFound = false;
+    this.isTooFar = false;
+    this.clue = "";
     return this;
   }
 
@@ -54,10 +58,15 @@ class GoalTracker {
       return;
     }
     if (this.maxDistance < distanceToGoal) {
-      this.clueProgress = 0;
-      this.previousPosition = position;
-      this.previousDistance = distanceToGoal;
+      this.isTooFar = true;
       this.clue = `${Math.round(distanceToGoal)}m away`;
+      this.restartClue(position, distanceToGoal);
+      return;
+    }
+    if (this.isTooFar) {
+      this.isTooFar = false;
+      this.clue = "";
+      this.restartClue(position, distanceToGoal);
       return;
     }
     if (distanceFromPrevious < this.goalRadius) {
@@ -65,10 +74,14 @@ class GoalTracker {
       this.clueProgress = distanceFromPrevious / this.goalRadius;
       return;
     }
+    this.clue = (distanceChange < 0) ? "Warmer" : "Colder";
+    this.restartClue(position, distanceToGoal);
+  }
+
+  restartClue(position: GeolibInputCoordinates, distanceToGoal: number) {
     this.previousPosition = position;
     this.previousDistance = distanceToGoal;
     this.clueProgress = 0;
-    this.clue = (distanceChange < 0) ? "Warmer" : "Colder";
   }
 }
 
