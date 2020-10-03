@@ -22,7 +22,9 @@ import Geolocation from 'react-native-geolocation-service';
 import GoalTracker from "./GoalTracker";
 import { getLatitude, getLongitude } from "geolib";
 
-const STREET_ACCESS = "s-IOITSzOU7t4rwDHK5rIo1OuxHLZhS3BySazIA".split('').reverse().join('');
+const STREET_ACCESS = "s-IOITSzOU7t4rwDHK5rIo1OuxHLZhS3BySazIA".split('').reverse().join(''),
+  MAX_GOAL_DISTANCE = 1000,  // Distance to goal, in meters.
+  STEP_SIZE = 100;  // Distance between clues, in meters.
 declare const global: {HermesInternal: null | {}};
 
 type AppProps = {
@@ -35,7 +37,8 @@ type AppState = {
   error: string,
   positionCount: number,
   goalTracker?: GoalTracker,
-  goalUrl?: URL
+  allGoalTrackers: GoalTracker[],
+  goalUrl?: string
 }
 
 class App extends Component<AppProps, AppState> {
@@ -45,7 +48,8 @@ class App extends Component<AppProps, AppState> {
         location: "",
         clue: "",
         error: "",
-        positionCount: 0
+        positionCount: 0,
+        allGoalTrackers: []
     };
   }
 
@@ -88,12 +92,14 @@ class App extends Component<AppProps, AppState> {
       (pos) => {
         let goalTracker = app.state.goalTracker;
         if (goalTracker === undefined) {
-          goalTracker = new GoalTracker(pos.coords, 100);
+          goalTracker = new GoalTracker(pos.coords, STEP_SIZE);
           app.setState({goalTracker: goalTracker});
           this.onNext();
         }
         else {
-          goalTracker.updatePosition(pos.coords);
+          app.state.allGoalTrackers.forEach(tracker => {
+            tracker.updatePosition(pos.coords);
+          });
           app.setState({
             clue: goalTracker.clue
           });
@@ -120,41 +126,60 @@ class App extends Component<AppProps, AppState> {
 
   onNext = async () => {
     if (this.state.goalTracker !== undefined) {
-      this.state.goalTracker.chooseGoal(1000);
-
       this.setState({
         clue: "Scanning"
       });
-      try {
-        let apiUrl = new URL("https://maps.googleapis.com/maps/api/"),
-          metadataPath = "streetview/metadata",
-          imagePath = "streetview",
-          goalPosition = this.state.goalTracker.goalPosition;
-        let goalLatitude = getLatitude(goalPosition),
-          goalLongitude = getLongitude(goalPosition);
-        metadataPath += `?location=${goalLatitude},${goalLongitude}`;
-        metadataPath += `&key=${STREET_ACCESS}`;
-        let metadataResponse = await fetch(new URL(metadataPath, apiUrl.href).href);
-        let json = await metadataResponse.json();
-        goalLatitude = json.location.lat;
-        goalLongitude = json.location.lng;
-        imagePath += `?location=${goalLatitude},${goalLongitude}`;
-        imagePath += `&size=300x300`;
-        imagePath += `&heading=${Math.random() * 360}`;
-        imagePath += `&key=${STREET_ACCESS}`;
-        this.setState({
-          clue: "Ready",
-          goalUrl: new URL(imagePath, apiUrl.href)
-        });
-      } catch (error) {
-        console.error('Error fetching image: ' + error);
-        this.setState({
-          clue: "",
-          goalUrl: undefined,
-          error: "No street view."
-        })
+      // this.state.goalTracker.chooseGoal(MAX_GOAL_DISTANCE);
+      let goalsExpected = 3,
+        allGoalTrackers = [];
+      for (let goalNum = 0; goalNum < goalsExpected; goalNum++) {
+        let goalTracker = new GoalTracker(
+          this.state.goalTracker.currentPosition,
+          STEP_SIZE).chooseGoal(MAX_GOAL_DISTANCE);
+        try {
+          let apiUrl = new URL("https://maps.googleapis.com/maps/api/"),
+            metadataPath = "streetview/metadata",
+            imagePath = "streetview",
+            goalPosition = goalTracker.goalPosition;
+          let goalLatitude = getLatitude(goalPosition),
+            goalLongitude = getLongitude(goalPosition);
+          metadataPath += `?location=${goalLatitude},${goalLongitude}`;
+          metadataPath += `&key=${STREET_ACCESS}`;
+          let metadataResponse = await fetch(new URL(metadataPath, apiUrl.href).href);
+          let json = await metadataResponse.json();
+          goalLatitude = json.location.lat;
+          goalLongitude = json.location.lng;
+          imagePath += `?location=${goalLatitude},${goalLongitude}`;
+          imagePath += `&size=300x300`;
+          imagePath += `&heading=${Math.random() * 360}`;
+          imagePath += `&key=${STREET_ACCESS}`;
+          goalTracker.imageUrl = new URL(imagePath, apiUrl.href).href;
+        } catch (error) {
+          console.error('Error fetching image: ' + error);
+          this.setState({
+            clue: "",
+            goalUrl: undefined,
+            error: "No street view."
+          })
+        }
+        allGoalTrackers.push(goalTracker);
       }
+      let goalTracker = allGoalTrackers[0];
+      this.setState({
+        clue: "Ready",
+        allGoalTrackers: allGoalTrackers,
+        goalTracker: goalTracker,
+        goalUrl: goalTracker.imageUrl
+      });
     }
+  }
+
+  onChooseGoal = (goalTracker: GoalTracker) => {
+    this.setState({
+      goalTracker: goalTracker,
+      goalUrl: goalTracker.imageUrl,
+      clue: goalTracker.clue
+    })
   }
 
   render() {
@@ -175,14 +200,18 @@ class App extends Component<AppProps, AppState> {
                 { this.state.goalUrl === undefined ? null : (
                   <Image
                     style={styles.streetView}
-                    source={{uri: this.state.goalUrl.href}} />
+                    source={{uri: this.state.goalUrl}} />
                 )}
                 
                 <Text style={styles.sectionTitle}>Clue: {this.state.clue}</Text>
                 <Text style={styles.sectionTitle}>Progress: {this.state.goalTracker?.clueProgress}</Text>
-                <Button title="Next" onPress={this.onNext} />
-                <Text style={styles.sectionTitle}>Current location: {this.state.location}</Text>
                 <Text style={styles.sectionTitle}>Error: {this.state.error}</Text>
+                {this.state.allGoalTrackers.map((goalTracker, goalNum) => (
+                  <Button
+                    title={`${goalTracker.emoji} Goal ${goalNum+1}`}
+                    onPress={() => this.onChooseGoal(goalTracker)} />
+                ))}
+                <Button title="Next" onPress={this.onNext} />
               </View>
             </View>
           </ScrollView>

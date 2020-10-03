@@ -2,6 +2,16 @@ import { computeDestinationPoint, getDistance } from 'geolib';
 import type { GeolibInputCoordinates } from 'geolib/es/types'
 
 
+enum GoalEmojis {
+  NONE = "",
+  START = "🔎",
+  FAR = "🔭",
+  WARMER = "🔥",
+  COLDER = "🧊",
+  FOUND = "🎉"
+}
+
+
 class GoalTracker {
   currentPosition: GeolibInputCoordinates;
   goalRadius: number;
@@ -13,6 +23,8 @@ class GoalTracker {
   clueProgress: number; // fraction of distance to next clue
   isFound: boolean;
   isTooFar: boolean;
+  imageUrl?: string;
+  emoji: string;
 
   constructor(
     currentPosition: GeolibInputCoordinates,
@@ -23,6 +35,7 @@ class GoalTracker {
     this.isFound = true;
     this.isTooFar = false;
     this.clue = "";
+    this.emoji = GoalEmojis.NONE;
     this.previousDistance = this.maxDistance = this.clueProgress = 0;
   }
 
@@ -35,6 +48,7 @@ class GoalTracker {
     this.isFound = false;
     this.isTooFar = false;
     this.clue = "";
+    this.emoji = GoalEmojis.START;
     return this;
   }
 
@@ -55,17 +69,20 @@ class GoalTracker {
       this.previousPosition = position;
       this.previousDistance = distanceToGoal;
       this.clue = `Found ${Math.round(distanceToGoal)}m away`;
+      this.emoji = GoalEmojis.FOUND;
       return;
     }
     if (this.maxDistance < distanceToGoal) {
       this.isTooFar = true;
       this.clue = `${Math.round(distanceToGoal)}m away`;
+      this.emoji = GoalEmojis.FAR;
       this.restartClue(position, distanceToGoal);
       return;
     }
     if (this.isTooFar) {
       this.isTooFar = false;
       this.clue = "";
+      this.emoji = GoalEmojis.START;
       this.restartClue(position, distanceToGoal);
       return;
     }
@@ -74,7 +91,14 @@ class GoalTracker {
       this.clueProgress = distanceFromPrevious / this.goalRadius;
       return;
     }
-    this.clue = (distanceChange < 0) ? "Warmer" : "Colder";
+    if (distanceChange < 0) {
+      this.clue = "Warmer";
+      this.emoji = GoalEmojis.WARMER;
+    }
+    else {
+      this.clue = "Colder";
+      this.emoji = GoalEmojis.COLDER;
+    }
     this.restartClue(position, distanceToGoal);
   }
 
