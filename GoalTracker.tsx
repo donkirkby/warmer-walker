@@ -25,6 +25,7 @@ class GoalTracker {
   isTooFar: boolean;
   imageUrl?: string;
   emoji: string;
+  sound: string;
 
   constructor(
     currentPosition: GeolibInputCoordinates,
@@ -35,7 +36,7 @@ class GoalTracker {
     this.isFound = true;
     this.isTooFar = false;
     this.clue = "";
-    this.emoji = GoalEmojis.NONE;
+    this.emoji = this.sound = GoalEmojis.NONE;
     this.previousDistance = this.maxDistance = this.clueProgress = 0;
   }
 
@@ -63,13 +64,14 @@ class GoalTracker {
     let distanceToGoal = getDistance(position, this.goalPosition),
         distanceChange = distanceToGoal - this.previousDistance,
         distanceFromPrevious = getDistance(this.previousPosition, position);
+    this.sound = GoalEmojis.NONE;
     if (this.isFound || distanceToGoal < this.goalRadius) {
       this.isFound = true;
       this.clueProgress = 0;
       this.previousPosition = position;
       this.previousDistance = distanceToGoal;
       this.clue = `Found ${Math.round(distanceToGoal)}m away`;
-      this.emoji = GoalEmojis.FOUND;
+      this.sound = this.emoji = GoalEmojis.FOUND;
       return;
     }
     if (this.maxDistance < distanceToGoal) {
@@ -93,11 +95,11 @@ class GoalTracker {
     }
     if (distanceChange < 0) {
       this.clue = "Warmer";
-      this.emoji = GoalEmojis.WARMER;
+      this.sound = this.emoji = GoalEmojis.WARMER;
     }
     else {
       this.clue = "Colder";
-      this.emoji = GoalEmojis.COLDER;
+      this.sound = this.emoji = GoalEmojis.COLDER;
     }
     this.restartClue(position, distanceToGoal);
   }
@@ -110,4 +112,5 @@ class GoalTracker {
 }
 
 export default GoalTracker;
+export { GoalEmojis };
 export type { GeolibInputCoordinates };

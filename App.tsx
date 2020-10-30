@@ -19,13 +19,16 @@ import {
 
 import { Colors } from 'react-native/Libraries/NewAppScreen';
 import Geolocation from 'react-native-geolocation-service';
-import GoalTracker from "./GoalTracker";
+import GoalTracker, {GoalEmojis} from "./GoalTracker";
 import { getLatitude, getLongitude } from "geolib";
+import Sound from 'react-native-sound';
 
 const STREET_ACCESS = "s-IOITSzOU7t4rwDHK5rIo1OuxHLZhS3BySazIA".split('').reverse().join(''),
   MAX_GOAL_DISTANCE = 1000,  // Distance to goal, in meters.
   STEP_SIZE = 100;  // Distance between clues, in meters.
 declare const global: {HermesInternal: null | {}};
+
+Sound.setCategory('Playback');
 
 type AppProps = {
 
@@ -38,18 +41,28 @@ type AppState = {
   positionCount: number,
   goalTracker?: GoalTracker,
   allGoalTrackers: GoalTracker[],
-  goalUrl?: string
+  goalUrl?: string,
+  warmer: Sound,
+  colder: Sound,
+  found: Sound
 }
 
 class App extends Component<AppProps, AppState> {
   constructor(props: AppProps) {
     super(props);
+    let warmer = loadSound('warmer.mp3'),
+      colder = loadSound('colder.mp3'),
+      found = loadSound('found.mp3');
+    
     this.state = {
         location: "",
         clue: "",
         error: "",
         positionCount: 0,
-        allGoalTrackers: []
+        allGoalTrackers: [],
+        warmer: warmer,
+        colder: colder,
+        found: found
     };
   }
 
@@ -103,6 +116,15 @@ class App extends Component<AppProps, AppState> {
           app.setState({
             clue: goalTracker.clue
           });
+          if (goalTracker.sound === GoalEmojis.WARMER) {
+            this.state.warmer.play();
+          }
+          else if (goalTracker.sound === GoalEmojis.COLDER) {
+            this.state.colder.play();
+          }
+          else if (goalTracker.sound === GoalEmojis.FOUND) {
+            this.state.found.play();
+          }
         }
         app.setState({
           location: pos.coords.latitude + "; " + pos.coords.longitude,
@@ -129,6 +151,7 @@ class App extends Component<AppProps, AppState> {
       this.setState({
         clue: "Scanning"
       });
+      this.state.colder.play();
       // this.state.goalTracker.chooseGoal(MAX_GOAL_DISTANCE);
       let goalsExpected = 3,
         allGoalTrackers = [];
@@ -208,6 +231,7 @@ class App extends Component<AppProps, AppState> {
                 <Text style={styles.sectionTitle}>Error: {this.state.error}</Text>
                 {this.state.allGoalTrackers.map((goalTracker, goalNum) => (
                   <Button
+                    key={`goal${goalNum+1}`}
                     title={`${goalTracker.emoji} Goal ${goalNum+1}`}
                     onPress={() => this.onChooseGoal(goalTracker)} />
                 ))}
@@ -263,5 +287,14 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 });
+
+function loadSound(fileName: string) {
+  return new Sound(fileName, Sound.MAIN_BUNDLE, (error: any) => {
+    if (error) {
+      console.log('failed to load the sound', error);
+      return;
+    }
+  });
+}
 
 export default App;
