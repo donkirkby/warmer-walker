@@ -7,15 +7,18 @@
 import React, { Component } from "react";
 import {
   Button,
+  Modal,
   PermissionsAndroid,
   SafeAreaView,
   StyleSheet,
   ScrollView,
+  TouchableWithoutFeedback,
   View,
   Text,
   StatusBar,
   Image
 } from 'react-native';
+import ImageViewer from 'react-native-image-zoom-viewer';
 
 import { Colors } from 'react-native/Libraries/NewAppScreen';
 import Geolocation from 'react-native-geolocation-service';
@@ -35,6 +38,7 @@ type AppProps = {
 };
 
 type AppState = {
+  isModalVisible: boolean,
   clue: string,  // warmer, colder, or found!
   location: string,
   error: string,
@@ -55,6 +59,7 @@ class App extends Component<AppProps, AppState> {
       found = loadSound('found.mp3');
     
     this.state = {
+        isModalVisible: false,
         location: "",
         clue: "",
         error: "",
@@ -173,7 +178,7 @@ class App extends Component<AppProps, AppState> {
           goalLatitude = json.location.lat;
           goalLongitude = json.location.lng;
           imagePath += `?location=${goalLatitude},${goalLongitude}`;
-          imagePath += `&size=300x300`;
+          imagePath += `&size=600x600`;
           imagePath += `&heading=${Math.random() * 360}`;
           imagePath += `&key=${STREET_ACCESS}`;
           goalTracker.imageUrl = new URL(imagePath, apiUrl.href).href;
@@ -205,6 +210,14 @@ class App extends Component<AppProps, AppState> {
     })
   }
 
+  onShowModal = () => {
+    this.setState({isModalVisible: true})
+  }
+
+  onCancelModal = () => {
+    this.setState({isModalVisible: false})
+  }
+
   render() {
     return (
       <>
@@ -221,9 +234,19 @@ class App extends Component<AppProps, AppState> {
             <View style={styles.body}>
               <View style={styles.sectionContainer}>
                 { this.state.goalUrl === undefined ? null : (
-                  <Image
-                    style={styles.streetView}
-                    source={{uri: this.state.goalUrl}} />
+                  <View>
+                    <Modal visible={this.state.isModalVisible} transparent={true}>
+                      <ImageViewer
+                        imageUrls={[{url: this.state.goalUrl}]}
+                        enableSwipeDown={true}
+                        onCancel={this.onCancelModal} />
+                    </Modal>
+                    <TouchableWithoutFeedback onPress={this.onShowModal}>
+                      <Image
+                        style={styles.streetView}
+                        source={{uri: this.state.goalUrl}} />
+                    </TouchableWithoutFeedback>
+                  </View>
                 )}
                 
                 <Text style={styles.sectionTitle}>Clue: {this.state.clue}</Text>
