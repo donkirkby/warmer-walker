@@ -7,16 +7,17 @@
 import React, { Component } from "react";
 import {
   Button,
+  Image,
   Modal,
   PermissionsAndroid,
   SafeAreaView,
+  StatusBar,
   StyleSheet,
   ScrollView,
+  Text,
   TouchableWithoutFeedback,
   View,
-  Text,
-  StatusBar,
-  Image
+  Vibration
 } from 'react-native';
 import ImageViewer from 'react-native-image-zoom-viewer';
 
@@ -24,15 +25,12 @@ import { Colors } from 'react-native/Libraries/NewAppScreen';
 import Geolocation from 'react-native-geolocation-service';
 import GoalTracker, {GoalEmojis} from "./GoalTracker";
 import { getLatitude, getLongitude } from "geolib";
-import Sound from 'react-native-sound';
 import { IImageInfo } from "react-native-image-zoom-viewer/built/image-viewer.type";
 
 const STREET_ACCESS = "s-IOITSzOU7t4rwDHK5rIo1OuxHLZhS3BySazIA".split('').reverse().join(''),
   MAX_GOAL_DISTANCE = 1000,  // Distance to goal, in meters.
   STEP_SIZE = 100;  // Distance between clues, in meters.
 declare const global: {HermesInternal: null | {}};
-
-Sound.setCategory('Playback');
 
 type AppProps = {
 
@@ -46,18 +44,12 @@ type AppState = {
   positionCount: number,
   goalTracker?: GoalTracker,
   allGoalTrackers: GoalTracker[],
-  goalImages: IImageInfo[],
-  warmer: Sound,
-  colder: Sound,
-  found: Sound
+  goalImages: IImageInfo[]
 }
 
 class App extends Component<AppProps, AppState> {
   constructor(props: AppProps) {
     super(props);
-    let warmer = loadSound('warmer.mp3'),
-      colder = loadSound('colder.mp3'),
-      found = loadSound('found.mp3');
     
     this.state = {
         isModalVisible: false,
@@ -66,10 +58,7 @@ class App extends Component<AppProps, AppState> {
         error: "",
         positionCount: 0,
         allGoalTrackers: [],
-        goalImages: [],
-        warmer: warmer,
-        colder: colder,
-        found: found
+        goalImages: []
     };
   }
 
@@ -124,13 +113,13 @@ class App extends Component<AppProps, AppState> {
             clue: goalTracker.clue
           });
           if (goalTracker.sound === GoalEmojis.WARMER) {
-            this.state.warmer.play();
+            Vibration.vibrate(400);
           }
           else if (goalTracker.sound === GoalEmojis.COLDER) {
-            this.state.colder.play();
+            Vibration.vibrate([200, 100, 200]);
           }
           else if (goalTracker.sound === GoalEmojis.FOUND) {
-            this.state.found.play();
+            Vibration.vibrate([200, 100, 200, 100, 200]);
           }
         }
         app.setState({
@@ -158,8 +147,6 @@ class App extends Component<AppProps, AppState> {
       this.setState({
         clue: "Scanning"
       });
-      this.state.colder.play();
-      // this.state.goalTracker.chooseGoal(MAX_GOAL_DISTANCE);
       let goalsExpected = 3,
         allGoalTrackers = [];
       for (let goalNum = 0; goalNum < goalsExpected; goalNum++) {
@@ -315,15 +302,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 });
-
-function loadSound(fileName: string) {
-  return new Sound(fileName, Sound.MAIN_BUNDLE, (error: any) => {
-    if (error) {
-      console.log('failed to load the sound', error);
-      return;
-    }
-  });
-}
 
 function wrapImages(urls: string[]): IImageInfo[] {
   return urls.map(url => ({url: url, width: 600, height: 600}));

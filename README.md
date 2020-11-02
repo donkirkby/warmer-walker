@@ -9,5 +9,8 @@ In another terminal, launch the app:
 
     npx react-native run-android
 
+It's built around the Google [Streetview API].
+
 [React Native]: https://reactnative.dev/
 [development environment]: https://reactnative.dev/docs/environment-setup
+[Streetview API]: https://developers.google.com/maps/documentation/streetview/metadata
