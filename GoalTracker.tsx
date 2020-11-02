@@ -23,7 +23,7 @@ class GoalTracker {
   clueProgress: number; // fraction of distance to next clue
   isFound: boolean;
   isTooFar: boolean;
-  imageUrl?: string;
+  imageUrls: string[];
   emoji: string;
   sound: string;
 
@@ -35,6 +35,7 @@ class GoalTracker {
     this.goalRadius = goalRadius;
     this.isFound = true;
     this.isTooFar = false;
+    this.imageUrls = [];
     this.clue = "";
     this.emoji = this.sound = GoalEmojis.NONE;
     this.previousDistance = this.maxDistance = this.clueProgress = 0;

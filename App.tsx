@@ -25,6 +25,7 @@ import Geolocation from 'react-native-geolocation-service';
 import GoalTracker, {GoalEmojis} from "./GoalTracker";
 import { getLatitude, getLongitude } from "geolib";
 import Sound from 'react-native-sound';
+import { IImageInfo } from "react-native-image-zoom-viewer/built/image-viewer.type";
 
 const STREET_ACCESS = "s-IOITSzOU7t4rwDHK5rIo1OuxHLZhS3BySazIA".split('').reverse().join(''),
   MAX_GOAL_DISTANCE = 1000,  // Distance to goal, in meters.
@@ -45,7 +46,7 @@ type AppState = {
   positionCount: number,
   goalTracker?: GoalTracker,
   allGoalTrackers: GoalTracker[],
-  goalUrl?: string,
+  goalImages: IImageInfo[],
   warmer: Sound,
   colder: Sound,
   found: Sound
@@ -65,6 +66,7 @@ class App extends Component<AppProps, AppState> {
         error: "",
         positionCount: 0,
         allGoalTrackers: [],
+        goalImages: [],
         warmer: warmer,
         colder: colder,
         found: found
@@ -179,14 +181,17 @@ class App extends Component<AppProps, AppState> {
           goalLongitude = json.location.lng;
           imagePath += `?location=${goalLatitude},${goalLongitude}`;
           imagePath += `&size=600x600`;
-          imagePath += `&heading=${Math.random() * 360}`;
           imagePath += `&key=${STREET_ACCESS}`;
-          goalTracker.imageUrl = new URL(imagePath, apiUrl.href).href;
+          let startHeading = Math.random() * 360;
+          for (let imageNum = 0; imageNum < 4; imageNum++) {
+            let headingPath = imagePath + `&heading=${imageNum * 90 + startHeading}`;
+            goalTracker.imageUrls.push(new URL(headingPath, apiUrl.href).href);
+          }
         } catch (error) {
           console.error('Error fetching image: ' + error);
           this.setState({
             clue: "",
-            goalUrl: undefined,
+            goalImages: [],
             error: "No street view."
           })
         }
@@ -197,7 +202,7 @@ class App extends Component<AppProps, AppState> {
         clue: "Ready",
         allGoalTrackers: allGoalTrackers,
         goalTracker: goalTracker,
-        goalUrl: goalTracker.imageUrl
+        goalImages: wrapImages(goalTracker.imageUrls)
       });
     }
   }
@@ -205,7 +210,7 @@ class App extends Component<AppProps, AppState> {
   onChooseGoal = (goalTracker: GoalTracker) => {
     this.setState({
       goalTracker: goalTracker,
-      goalUrl: goalTracker.imageUrl,
+      goalImages: wrapImages(goalTracker.imageUrls),
       clue: goalTracker.clue
     })
   }
@@ -233,18 +238,18 @@ class App extends Component<AppProps, AppState> {
             )}
             <View style={styles.body}>
               <View style={styles.sectionContainer}>
-                { this.state.goalUrl === undefined ? null : (
+                { this.state.goalImages.length == 0 ? null : (
                   <View>
                     <Modal visible={this.state.isModalVisible} transparent={true}>
                       <ImageViewer
-                        imageUrls={[{url: this.state.goalUrl}]}
+                        imageUrls={this.state.goalImages}
                         enableSwipeDown={true}
                         onCancel={this.onCancelModal} />
                     </Modal>
                     <TouchableWithoutFeedback onPress={this.onShowModal}>
                       <Image
                         style={styles.streetView}
-                        source={{uri: this.state.goalUrl}} />
+                        source={{uri: this.state.goalImages[0].url}} />
                     </TouchableWithoutFeedback>
                   </View>
                 )}
@@ -318,6 +323,10 @@ function loadSound(fileName: string) {
       return;
     }
   });
+}
+
+function wrapImages(urls: string[]): IImageInfo[] {
+  return urls.map(url => ({url: url, width: 600, height: 600}));
 }
 
 export default App;
